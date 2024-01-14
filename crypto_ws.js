@@ -19,7 +19,7 @@ const lorem = new LoremIpsum({
 // Node.js program to demonstrate the    
 // crypto.createCipheriv() method
  
-// Defining algorithm
+/* // Defining algorithm
 const algorithm = 'aes-256-cbc';
  
 // Defining key
@@ -58,22 +58,22 @@ function decrypt(text, k, v) {
  
  // Returning iv and encrypted data
  return decrypted.toString('utf8');
-}
+} */
 
 http.createServer(function (req, res) {
-	let helpMsg = "Valid endpoints:\r\nPOST /encrypt\r\nPOST /decrypt\r\nGET /encrypt\r\nGET accepts plaintext. POSTS expect plaintext body.\r\n";
+	let helpMsg = "Valid endpoints:\r\nPOST /encrypt\r\nPOST /decrypt\r\nPOST /iter_encrypt\r\nPOST /iter_decrypt\r\nGET /plaintext\r\nGET /iter\r\nGET accepts plaintext. POSTS expect plaintext body.\r\n";
 	let textIn = '';
 	let pwdIn = req.headers['x-crypto-pass'] ?? process.env.pwd;
 	//console.log(pwdIn);
 	
-	//Hash the password into buffers for IV and Key
+	/* //Hash the password into buffers for IV and Key
 	let vectorHash = crypto.createHash('md5');
 	vectorHash.update(pwdIn);
 	let myVector = vectorHash.digest();
 	
 	let keyHash = crypto.createHash('sha256');
 	keyHash.update(pwdIn);
-	let myKey = keyHash.digest();
+	let myKey = keyHash.digest(); */
 	
 	try
 	{
@@ -99,24 +99,17 @@ http.createServer(function (req, res) {
 						res.end();
 						//console.log(res);
 					}
-					else if (req.url == "/decrypt_svs")
+					else if (req.url == "/iter_encrypt")
 					{
 						res.writeHead(200, {'Transfer-Encoding':'chunked','Content-Type': 'text/plain'});
-						res.write(cjs.AES.decrypt(textIn, process.env.svs).toString(cjs.enc.Utf8) + "\r\n");
+						res.write(cjs.AES.encrypt(textIn, process.env.iterKey, {iv: process.env.iterIV}).toString() + "\r\n");
 						res.end();
 						//console.log(res);
 					}
-					else if (req.url == "/aes_encrypt")
+					else if (req.url == "/iter_decrypt")
 					{
 						res.writeHead(200, {'Transfer-Encoding':'chunked','Content-Type': 'text/plain'});
-						res.write(encrypt(textIn, myKey, myVector) + "\r\n");
-						res.end();
-						//console.log(res);
-					}
-					else if (req.url == "/aes_decrypt")
-					{
-						res.writeHead(200, {'Transfer-Encoding':'chunked','Content-Type': 'text/plain'});
-						res.write(decrypt(textIn, myKey, myVector) + "\r\n");
+						res.write(cjs.AES.decrypt(textIn, process.env.iterKey, {iv: process.env.iterIV}).toString(cjs.enc.Utf8) + "\r\n");
 						res.end();
 						//console.log(res);
 					}
@@ -130,11 +123,11 @@ http.createServer(function (req, res) {
 				}
 				else if (req.method == "GET" && req.headers['accept'] == 'text/plain')
 				{
-					if (req.url == "/encrypt")
+					if (req.url == "/plaintext")
 					{
 						textIn = lorem.generateParagraphs(1);
 						res.writeHead(200, {'Transfer-Encoding':'chunked','Content-Type': 'text/plain'});
-						res.write(cjs.AES.encrypt(textIn, pwdIn).toString() + "\r\n");
+						res.write(textIn);
 						res.end();
 					}
 					else if (req.url == "/aes_encrypt")
@@ -144,12 +137,20 @@ http.createServer(function (req, res) {
 						res.write(encrypt(textIn, myKey, myVector) + "\r\n");
 						res.end();
 					}
-					else if (req.url == "/svs")
+					else if (req.url == '/iter')
 					{
-						
-						textIn = "600649666" + Math.floor(9000000000 + (Math.random() * 999999999));
-						res.writeHead(200, {'Transfer-Encoding':'chunked','Content-Type': 'text/plain'});
-						res.write(cjs.AES.encrypt(textIn, process.env.svs).toString() + "\r\n");
+						var salt = cjs.lib.WordArray.random(128 / 8);
+						var iterKey = cjs.PBKDF2(pwdIn, salt, { keySize: 256 / 32, iterations: 1000000 });
+						var iterIV = cjs.MD5(pwdIn);
+						var retVal = {pbkdf2_key: iterKey.toString(cjs.enc.Hex), pbkdf2_IV: iterIV.toString(cjs.enc.Hex)};
+						res.writeHead(200, {'Transfer-Encoding':'chunked','Content-Type': 'application/json'});
+						res.write(JSON.stringify(retVal));
+						res.end();
+					}
+					else
+					{
+						res.writeHead(404, {'Content-Type': 'text/plain'});
+						res.write(helpMsg);
 						res.end();
 					}
 				}
