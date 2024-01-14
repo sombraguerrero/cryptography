@@ -123,9 +123,12 @@ http.createServer(function (req, res) {
 				}
 				else if (req.method == "GET" && req.headers['accept'] == 'text/plain')
 				{
-					if (req.url == "/plaintext")
+					if (req.url.startsWith("/plaintext"))
 					{
-						textIn = lorem.generateParagraphs(1);
+						var params = new URLSearchParams(req.url.substring(req.url.indexOf('?')));
+						var n = params.get("p") ?? '1';
+						var p = parseInt(n);
+						textIn = lorem.generateParagraphs(p);
 						res.writeHead(200, {'Transfer-Encoding':'chunked','Content-Type': 'text/plain'});
 						res.write(textIn);
 						res.end();
