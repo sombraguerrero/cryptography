@@ -1,0 +1,98 @@
+<html><head><title>Crypto-JS Interface</title>
+<style>
+textarea {
+        overflow-y: scroll;
+		width: 450px;
+        height: 100px;
+    }
+</style>
+<script>
+function GetCreds()
+{
+	var txtRequest = new XMLHttpRequest();
+	txtRequest.open("GET", `http://settersynology:9843/pbkdf2?i=${document.getElementById('iterNum').value}`, true);
+	txtRequest.onreadystatechange = function() {
+		if (this.readyState == 4 && this.status == 200)
+		{
+			document.getElementById("outputTxtBox").value = this.responseText;
+		}
+	}
+	
+	txtRequest.setRequestHeader("Accept", "text/plain");
+	txtRequest.send();
+}
+
+function lorem()
+{
+	var txtRequest = new XMLHttpRequest();
+	txtRequest.open("GET", `http://settersynology:9843/plaintext?p=${document.getElementById('pNum').value}`, true);
+	txtRequest.onreadystatechange = function() {
+		if (this.readyState == 4 && this.status == 200)
+		{
+			document.getElementById("outputTxtBox").value = this.responseText;
+		}
+	}
+	txtRequest.setRequestHeader("Accept", "text/plain");
+	txtRequest.send();
+}
+
+function DoCrypto(m)
+{
+	var dest = "";
+	switch (m)
+	{
+		case 1: dest = "http://settersynology:9843/legacy_encrypt";
+		break;
+		case 2: dest = "http://settersynology:9843/legacy_decrypt";
+		break;
+		case 3: dest = "http://settersynology:9843/pbkdf2_encrypt";
+		break;
+		case 4: dest = "http://settersynology:9843/pbkdf2_decrypt";
+		break;
+	}
+	var txtRequest = new XMLHttpRequest();
+	txtRequest.open("POST", dest, true);
+	txtRequest.setRequestHeader("Accept", "text/plain");
+	txtRequest.onreadystatechange = function() {
+		if (this.readyState == 4 && this.status == 200)
+		{
+			document.getElementById("outputTxtBox").value = this.responseText;
+		}
+	}
+	txtRequest.send(document.getElementById("inputTxtBox").value);
+}
+
+function ChooseCrypto()
+{
+	if (document.getElementById("encBtn").checked)
+	{
+		if (document.getElementById("ospBtn").checked)
+			DoCrypto(1);
+		else
+			DoCrypto(3);
+	}
+	else
+	{
+		if (document.getElementById("ospBtn").checked)
+			DoCrypto(2);
+		else
+			DoCrypto(4);
+	}
+}
+</script>
+</head>
+<body>
+<form>
+<h3>Action</h3>
+<input name="mode" type="radio" value="encrypt" id="encBtn" checked="true">Encrypt</input>
+<input name="mode" type="radio" value="decrypt" id="decBtn">Decrypt</input>
+<h3>Algorithm</h3>
+<input name="algorithm" type="radio" value="legacy" id="ospBtn">EVP_BytesToKey</input>
+<input name="algorithm" type="radio" value="PBKDF2" id="iterBtn" checked="true">PBKDF2</input> <input type="button" value="Crypto!" onClick="ChooseCrypto()" />
+<br clear="all">Input:<br><textarea id="inputTxtBox"></textarea>
+<br clear="all">Output:<br><textarea id="outputTxtBox" id="outputTxt"></textarea>
+<br><input type="button" value="Lorem Ipsum" onClick="lorem()"> Paragraphs: <input type="number" id="pNum" min=1 value=1 />
+<br><input type="button" value="Generate PBKDF2 Key" onClick="GetCreds()"> Iterations: <input type="number" id="iterNum" min=2048 value=25000 />
+</form>
+</body>
+</html>

@@ -82,33 +82,33 @@ http.createServer(function (req, res) {
 			try
 			{
 				//console.log("Original text:\r\n" + textIn);
-				if (req.method == "POST" && req.headers['content-type'] == "text/plain")
+				if (req.method == "POST" || req.method == "OPTIONS")
 				{
 					//console.log(req);
 					if (req.url == "/legacy_encrypt")
 					{
-						res.writeHead(200, {'Transfer-Encoding':'chunked','Content-Type': 'text/plain'});
+						res.writeHead(200, {'Accept':'text/plain','Access-Control-Allow-Origin':'http://settersynology','Access-Control-Allow-Methods':'OPTIONS, POST, GET'});
 						res.write(cjs.AES.encrypt(textIn, pwdIn).toString() + "\r\n");
 						res.end();
 						//console.log(res);
 					}
 					else if (req.url == "/legacy_decrypt")
 					{
-						res.writeHead(200, {'Transfer-Encoding':'chunked','Content-Type': 'text/plain'});
+						res.writeHead(200, {'Accept':'text/plain','Access-Control-Allow-Origin':'http://settersynology','Access-Control-Allow-Methods':'OPTIONS, POST, GET'});
 						res.write(cjs.AES.decrypt(textIn, pwdIn).toString(cjs.enc.Utf8) + "\r\n");
 						res.end();
 						//console.log(res);
 					}
 					else if (req.url == "/pbkdf2_encrypt")
 					{
-						res.writeHead(200, {'Transfer-Encoding':'chunked','Content-Type': 'text/plain'});
+						res.writeHead(200, {'Accept':'text/plain','Access-Control-Allow-Origin':'http://settersynology','Access-Control-Allow-Methods':'OPTIONS, POST, GET'});
 						res.write(cjs.AES.encrypt(textIn, process.env.iterKey, {iv: process.env.iterIV}).toString() + "\r\n");
 						res.end();
 						//console.log(res);
 					}
 					else if (req.url == "/pbkdf2_decrypt")
 					{
-						res.writeHead(200, {'Transfer-Encoding':'chunked','Content-Type': 'text/plain'});
+						res.writeHead(200, {'Accept':'text/plain','Access-Control-Allow-Origin':'http://settersynology','Access-Control-Allow-Methods':'OPTIONS, POST, GET'});
 						res.write(cjs.AES.decrypt(textIn, process.env.iterKey, {iv: process.env.iterIV}).toString(cjs.enc.Utf8) + "\r\n");
 						res.end();
 						//console.log(res);
@@ -129,7 +129,7 @@ http.createServer(function (req, res) {
 						var n = params.get("p") ?? '1';
 						var p = parseInt(n);
 						textIn = lorem.generateParagraphs(p);
-						res.writeHead(200, {'Transfer-Encoding':'chunked','Content-Type': 'text/plain'});
+						res.writeHead(200, {'Access-Control-Allow-Origin': '*','Access-Control-Allow-Methods': 'OPTIONS, POST, GET','Transfer-Encoding':'chunked','Accept': 'text/plain'});
 						res.write(textIn);
 						res.end();
 					}
@@ -142,7 +142,7 @@ http.createServer(function (req, res) {
 						var iterKey = cjs.PBKDF2(pwdIn, salt, { keySize: 256 / 32, iterations: i });
 						var iterIV = cjs.MD5(pwdIn);
 						var retVal = {pbkdf2_key: iterKey.toString(cjs.enc.Hex), pbkdf2_IV: iterIV.toString(cjs.enc.Hex)};
-						res.writeHead(200, {'Transfer-Encoding':'chunked','Content-Type': 'application/json'});
+						res.writeHead(200, {'Access-Control-Allow-Origin': '*','Access-Control-Allow-Methods': 'OPTIONS, POST, GET','Transfer-Encoding':'chunked','Content-Type': 'application/json'});
 						res.write(JSON.stringify(retVal));
 						res.end();
 					}
