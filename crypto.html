@@ -2,30 +2,23 @@
 <style>
 textarea {
         overflow-y: scroll;
-		width: 450px;
-        height: 100px;
+		width: 1024px;
+        height: 250px;
     }
 </style>
 <script>
-function GetCreds()
+function getText(m)
 {
-	var txtRequest = new XMLHttpRequest();
-	txtRequest.open("GET", `http://settersynology:9843/pbkdf2?i=${document.getElementById('iterNum').value}`, true);
-	txtRequest.onreadystatechange = function() {
-		if (this.readyState == 4 && this.status == 200)
-		{
-			document.getElementById("outputTxtBox").value = this.responseText;
-		}
+	var dest = "";
+	switch (m)
+	{
+		case 1: dest = `http://settersynology:9843/plaintext?p=${document.getElementById('pNum').value}`;
+		break;
+		case 2: dest = `http://settersynology:9843/pbkdf2?i=${document.getElementById('iterNum').value}`;
+		break;
 	}
-	
-	txtRequest.setRequestHeader("Accept", "text/plain");
-	txtRequest.send();
-}
-
-function lorem()
-{
 	var txtRequest = new XMLHttpRequest();
-	txtRequest.open("GET", `http://settersynology:9843/plaintext?p=${document.getElementById('pNum').value}`, true);
+	txtRequest.open("GET", dest, true);
 	txtRequest.onreadystatechange = function() {
 		if (this.readyState == 4 && this.status == 200)
 		{
@@ -91,8 +84,8 @@ function ChooseCrypto()
 <input name="algorithm" type="radio" value="PBKDF2" id="iterBtn" checked="true">PBKDF2</input> <input type="button" value="Crypto!" onClick="ChooseCrypto()" />
 <br clear="all">Input:<br><textarea id="inputTxtBox"></textarea>
 <br clear="all">Output:<br><textarea id="outputTxtBox" id="outputTxt"></textarea>
-<br><input type="button" value="Lorem Ipsum" onClick="lorem()"> Paragraphs: <input type="number" id="pNum" min=1 value=1 />
-<br><input type="button" value="Generate PBKDF2 Key" onClick="GetCreds()"> Iterations: <input type="number" id="iterNum" min=2048 value=25000 />
+<br><input type="button" value="Lorem Ipsum" onClick="getText(1)"> Paragraphs: <input type="number" id="pNum" min=1 value=1 />
+<br><input type="button" value="Generate PBKDF2 Key" onClick="getText(2)"> Iterations: <input type="number" id="iterNum" min=2048 value=25000 />
 </form>
 </body>
 </html>
