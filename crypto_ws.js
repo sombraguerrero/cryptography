@@ -16,64 +16,14 @@ const lorem = new LoremIpsum({
   }
 });
 
-// Node.js program to demonstrate the    
-// crypto.createCipheriv() method
- 
-/* // Defining algorithm
-const algorithm = 'aes-256-cbc';
- 
-// Defining key
-//const key = fs.readFileSync('key.dat');
- 
-// Defining iv
-//const iv = fs.readFileSync('vector.dat');
- 
-// An encrypt function
-function encrypt(text, k, v) {
- 
- // Creating Cipheriv with its parameter
- //let cipher = crypto.createCipheriv(algorithm, Buffer.from(k), v);
- let cipher = crypto.createCipheriv(algorithm, k, v);
- 
- // Updating text
- let encrypted = cipher.update(text);
- 
- // Using concatenation
- encrypted = Buffer.concat([encrypted, cipher.final()]);
- 
- // Returning iv and encrypted data
- return encrypted.toString('base64');
-}
-
-function decrypt(text, k, v) {
- 
- // Creating Cipheriv with its parameter
-// let decipher = crypto.createDecipheriv(algorithm, Buffer.from(k), v);
-  let decipher = crypto.createDecipheriv(algorithm, k, v);
- // Updating text
- let decrypted = decipher.update(Buffer.from(text, 'base64'));
- 
- // Using concatenation
- decrypted = Buffer.concat([decrypted, decipher.final()]);
- 
- // Returning iv and encrypted data
- return decrypted.toString('utf8');
-} */
-
 http.createServer(function (req, res) {
-	let helpMsg = "Valid endpoints:\r\nPOST /legacy_encrypt\r\nPOST /legacy_decrypt\r\nPOST /pbkdf2_encrypt\r\nPOST /pbkdf2_decrypt\r\nGET /plaintext?p=<paragraphs, default is 1> - lorem ipsum text generation\r\nGET /pbkdf2?i=<iterations, default is 1000000> - PBKDF2 key generation\r\nGET accepts plaintext. POSTS expect plaintext body.\r\n";
+	let helpMsg = "Valid endpoints:\r\nPOST /legacy_encrypt\r\nPOST /legacy_decrypt\r\nPOST /pbkdf2_encrypt\r\nPOST /pbkdf2_decrypt\r\nGET /plaintext?p=<paragraphs, default is 1> - lorem ipsum text generation\r\nGET accepts plaintext. POSTS expect plaintext body.\r\n";
 	let textIn = '';
-	let pwdIn = req.headers['x-crypto-pass'] ?? process.env.pwd;
-	//console.log(pwdIn);
-	
-	/* //Hash the password into buffers for IV and Key
-	let vectorHash = crypto.createHash('md5');
-	vectorHash.update(pwdIn);
-	let myVector = vectorHash.digest();
-	
-	let keyHash = crypto.createHash('sha256');
-	keyHash.update(pwdIn);
-	let myKey = keyHash.digest(); */
+	let pwdIn = ''
+	if (req.headers['x-crypto-pass'] != null)
+		pwdIn = atob(req.headers['x-crypto-pass'])
+	else
+		pwdIn = process.env.pwd;
 	
 	try
 	{
@@ -87,29 +37,37 @@ http.createServer(function (req, res) {
 					//console.log(req);
 					if (req.url == "/legacy_encrypt")
 					{
-						res.writeHead(200, {'Accept':'text/plain','Access-Control-Allow-Origin':'http://settersynology','Access-Control-Allow-Methods':'OPTIONS, POST, GET'});
+						res.writeHead(200, {'Accept':'text/plain','Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'OPTIONS, POST, GET','Access-Control-Allow-Headers':'x-crypto-pass'});
 						res.write(cjs.AES.encrypt(textIn, pwdIn).toString() + "\r\n");
 						res.end();
 						//console.log(res);
 					}
 					else if (req.url == "/legacy_decrypt")
 					{
-						res.writeHead(200, {'Accept':'text/plain','Access-Control-Allow-Origin':'http://settersynology','Access-Control-Allow-Methods':'OPTIONS, POST, GET'});
+						res.writeHead(200, {'Accept':'text/plain','Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'OPTIONS, POST, GET','Access-Control-Allow-Headers':'x-crypto-pass'});
 						res.write(cjs.AES.decrypt(textIn, pwdIn).toString(cjs.enc.Utf8) + "\r\n");
 						res.end();
 						//console.log(res);
 					}
-					else if (req.url == "/pbkdf2_encrypt")
+					else if (req.url.startsWith("/pbkdf2_encrypt"))
 					{
-						res.writeHead(200, {'Accept':'text/plain','Access-Control-Allow-Origin':'http://settersynology','Access-Control-Allow-Methods':'OPTIONS, POST, GET'});
-						res.write(cjs.AES.encrypt(textIn, process.env.iterKey, {iv: process.env.iterIV}).toString() + "\r\n");
+						var salt = cjs.lib.WordArray.random(128 / 8);
+						var params = new URLSearchParams(req.url.substring(req.url.indexOf('?')));
+						var n = params.get("i") ?? '2000000';
+						var i = parseInt(n);
+						var iterKey = cjs.PBKDF2(pwdIn, salt, { keySize: 512 / 32, iterations: i });
+						var iterIV = cjs.MD5(pwdIn);
+						res.writeHead(200, {'Accept':'text/plain','Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'OPTIONS, POST, GET','Access-Control-Allow-Headers':'x-crypto-pass','Content-Type': 'application/json'});
+						var resp = {"cipherText": cjs.AES.encrypt(textIn, iterKey.toString(cjs.enc.Hex), {iv: iterIV.toString(cjs.enc.Hex)}).toString(), "key": iterKey.toString(cjs.enc.Hex), "iv" : iterIV.toString(cjs.enc.Hex)}
+						res.write(JSON.stringify(resp));
 						res.end();
 						//console.log(res);
 					}
-					else if (req.url == "/pbkdf2_decrypt")
+					else if (req.url.startsWith("/pbkdf2_decrypt"))
 					{
-						res.writeHead(200, {'Accept':'text/plain','Access-Control-Allow-Origin':'http://settersynology','Access-Control-Allow-Methods':'OPTIONS, POST, GET'});
-						res.write(cjs.AES.decrypt(textIn, process.env.iterKey, {iv: process.env.iterIV}).toString(cjs.enc.Utf8) + "\r\n");
+						res.writeHead(200, {'Accept':'text/plain','Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'OPTIONS, POST, GET','Access-Control-Allow-Headers':'x-crypto-pass'});
+						var cipherObj = JSON.parse(textIn);
+						res.write(cjs.AES.decrypt(cipherObj.cipherText, cipherObj.key, {iv: cipherObj.iv}).toString(cjs.enc.Utf8));
 						res.end();
 						//console.log(res);
 					}
@@ -131,19 +89,6 @@ http.createServer(function (req, res) {
 						textIn = lorem.generateParagraphs(p);
 						res.writeHead(200, {'Access-Control-Allow-Origin': '*','Access-Control-Allow-Methods': 'OPTIONS, POST, GET','Transfer-Encoding':'chunked','Accept': 'text/plain'});
 						res.write(textIn);
-						res.end();
-					}
-					else if (req.url.startsWith('/pbkdf2'))
-					{
-						var salt = cjs.lib.WordArray.random(128 / 8);
-						var params = new URLSearchParams(req.url.substring(req.url.indexOf('?')));
-						var n = params.get("i") ?? '1000000';
-						var i = parseInt(n);
-						var iterKey = cjs.PBKDF2(pwdIn, salt, { keySize: 256 / 32, iterations: i });
-						var iterIV = cjs.MD5(pwdIn);
-						var retVal = {pbkdf2_key: iterKey.toString(cjs.enc.Hex), pbkdf2_IV: iterIV.toString(cjs.enc.Hex)};
-						res.writeHead(200, {'Access-Control-Allow-Origin': '*','Access-Control-Allow-Methods': 'OPTIONS, POST, GET','Transfer-Encoding':'chunked','Content-Type': 'application/json'});
-						res.write(JSON.stringify(retVal));
 						res.end();
 					}
 					else

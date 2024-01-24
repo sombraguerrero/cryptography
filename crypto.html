@@ -14,15 +14,15 @@ function getText(m)
 	{
 		case 1: dest = `http://settersynology:9843/plaintext?p=${document.getElementById('pNum').value}`;
 		break;
-		case 2: dest = `http://settersynology:9843/pbkdf2?i=${document.getElementById('iterNum').value}`;
-		break;
+		//case 2: dest = `http://settersynology:9843/pbkdf2?i=${document.getElementById('iterNum').value}`;
+		//break;
 	}
 	var txtRequest = new XMLHttpRequest();
 	txtRequest.open("GET", dest, true);
 	txtRequest.onreadystatechange = function() {
 		if (this.readyState == 4 && this.status == 200)
 		{
-			document.getElementById("outputTxtBox").value = this.responseText;
+			document.getElementById("inputTxtBox").value = this.responseText;
 		}
 	}
 	txtRequest.setRequestHeader("Accept", "text/plain");
@@ -38,18 +38,24 @@ function DoCrypto(m)
 		break;
 		case 2: dest = "http://settersynology:9843/legacy_decrypt";
 		break;
-		case 3: dest = "http://settersynology:9843/pbkdf2_encrypt";
+		case 3: dest = `http://settersynology:9843/pbkdf2_encrypt?i=${document.getElementById('iterNum').value}`;
 		break;
-		case 4: dest = "http://settersynology:9843/pbkdf2_decrypt";
+		case 4: dest = `http://settersynology:9843/pbkdf2_decrypt?i=${document.getElementById('iterNum').value}`;
 		break;
 	}
 	var txtRequest = new XMLHttpRequest();
 	txtRequest.open("POST", dest, true);
-	txtRequest.setRequestHeader("Accept", "text/plain");
+	var pwd = document.getElementById("pwdTxtBox").value;
+	if (pwd != "")
+	{
+		var b64pass = btoa(pwd);
+		txtRequest.setRequestHeader("x-crypto-pass", b64pass);
+	}
 	txtRequest.onreadystatechange = function() {
 		if (this.readyState == 4 && this.status == 200)
 		{
 			document.getElementById("outputTxtBox").value = this.responseText;
+			document.getElementById("inputTxtBox").value = "";
 		}
 	}
 	txtRequest.send(document.getElementById("inputTxtBox").value);
@@ -81,11 +87,10 @@ function ChooseCrypto()
 <input name="mode" type="radio" value="decrypt" id="decBtn">Decrypt</input>
 <h3>Algorithm</h3>
 <input name="algorithm" type="radio" value="legacy" id="ospBtn">EVP_BytesToKey</input>
-<input name="algorithm" type="radio" value="PBKDF2" id="iterBtn" checked="true">PBKDF2</input> <input type="button" value="Crypto!" onClick="ChooseCrypto()" />
+<input name="algorithm" type="radio" value="PBKDF2" id="iterBtn" checked="true">PBKDF2</input><br clear="all"> Password: <input type="password" id="pwdTxtBox" /> Iterations: <input type="number" id="iterNum" min=2048 value=25000 /><input type="button" value="Crypto!" onClick="ChooseCrypto()" />
+<br clear="all"><input type="button" value="Lorem Ipsum" onClick="getText(1)"> Paragraphs: <input type="number" id="pNum" min=1 value=1 />
 <br clear="all">Input:<br><textarea id="inputTxtBox"></textarea>
 <br clear="all">Output:<br><textarea id="outputTxtBox" id="outputTxt"></textarea>
-<br><input type="button" value="Lorem Ipsum" onClick="getText(1)"> Paragraphs: <input type="number" id="pNum" min=1 value=1 />
-<br><input type="button" value="Generate PBKDF2 Key" onClick="getText(2)"> Iterations: <input type="number" id="iterNum" min=2048 value=25000 />
 </form>
 </body>
 </html>
