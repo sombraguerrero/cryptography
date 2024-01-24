@@ -15,16 +15,20 @@ namespace AES_Redone
         static bool pwdMatch = false;
         internal enum Mode
         {
-            EncPwdText = 1,
-            EncPwdFiles = 2,
-            DecPwdText = 3,
-            DecPwdFiles = 4,
-            OSSLCompatEnc = 5,
-            OSSLCompatDec = 6,
-            B64Enc = 7,
-            B64Dec = 8,
-            OSSLCompatEncFiles = 9,
-            OSSLCompatDecFiles = 10
+            EncPwdText,
+            EncPwdFiles,
+            DecPwdText,
+            DecPwdFiles,
+            OSSLCompatEnc,
+            OSSLCompatDec,
+            B64Enc,
+            B64Dec,
+            OSSLCompatEncFiles,
+            OSSLCompatDecFiles,
+            EncExisting,
+            DecExisting,
+            Ignore
+
         };
 
         private void SetMode()
@@ -290,6 +294,8 @@ namespace AES_Redone
             return myKeyObj.GetBytes(16);
         }
 
+        private byte[] GenerateIV() => RandomNumberGenerator.GetBytes(128 / 8);
+
         static void GenerateIVKey(string pwd, out byte[] iv, out byte[] k, byte[] salt)
         {
             // generate key and iv
@@ -391,23 +397,41 @@ namespace AES_Redone
             Array.Clear(b);
         }
 
-        private bool EncryptWithExisting() => !(string.IsNullOrEmpty(kFilePath.Text) || string.IsNullOrEmpty(ivFilePath.Text));
+        private Mode PBKDF2_Mode()
+        {
+            if (decryptBtn.Checked && !string.IsNullOrEmpty(kFilePath.Text) && !string.IsNullOrEmpty(ivFilePath.Text))
+            {
+                return Mode.DecExisting;
+            }
+            else if (encryptBtn.Checked && !string.IsNullOrEmpty(kFilePath.Text))
+            {
+                return Mode.EncExisting;
+            }
+            else
+            {
+                return Mode.Ignore;
+            }
+        }
 
         private void processBtn_Click(object sender, EventArgs e)
         {
             int iterations = Convert.ToInt32(itersBox.Value);
             string keyPath, ivPath;
             string kGenPath, nonceGenPath;
-            if (pwdMatch || (!pwdMatch && EncryptWithExisting()))
+            if (pwdMatch || (!(pwdMatch || PBKDF2_Mode().Equals(Mode.Ignore))))
             {
                 byte[] myKey, myVector, mySalt;
                 switch (CurrentMode)
                 {
                     case Mode.EncPwdText:
-                        if (EncryptWithExisting())
+                        if (PBKDF2_Mode().Equals(Mode.EncExisting))
                         {
                             myKey = File.ReadAllBytes(kFilePath.Text);
-                            myVector = File.ReadAllBytes(ivFilePath.Text);
+                            myVector = GenerateIV();
+                            if (!string.IsNullOrEmpty(ivFilePath.Text))
+                                MessageBox.Show("The existing IV will be ignored and a replacement will be generated.", "Notice");
+                            nonceGenPath = !string.IsNullOrEmpty(ivGenPath.Text) ? ivGenPath.Text : "pbkdf2_iv.dat";
+                            File.WriteAllBytes(nonceGenPath, myVector);
                         }
                         else
                         {
@@ -427,10 +451,14 @@ namespace AES_Redone
                         outputTxt.Text = DecryptStringFromBytes_Aes(Convert.FromBase64String(inputTxt.Text), File.ReadAllBytes(keyPath), File.ReadAllBytes(ivPath));
                         break;
                     case Mode.EncPwdFiles:
-                        if (EncryptWithExisting())
+                        if (PBKDF2_Mode().Equals(Mode.EncExisting))
                         {
                             myKey = File.ReadAllBytes(kFilePath.Text);
-                            myVector = File.ReadAllBytes(ivFilePath.Text);
+                            myVector = GenerateIV();
+                            if (!string.IsNullOrEmpty(ivFilePath.Text))
+                                MessageBox.Show("The existing IV will be ignored and a replacement will be generated.", "Notice");
+                            nonceGenPath = !string.IsNullOrEmpty(ivGenPath.Text) ? ivGenPath.Text : "pbkdf2_iv.dat";
+                            File.WriteAllBytes(nonceGenPath, myVector);
                         }
                         else
                         {
@@ -494,7 +522,7 @@ namespace AES_Redone
                         break;
                 }
             }
-            else if (!EncryptWithExisting())
+            else if (PBKDF2_Mode().Equals(Mode.Ignore))
             {
                 MessageBox.Show("Password mismatch!", "Warning");
             }
