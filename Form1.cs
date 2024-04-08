@@ -5,12 +5,14 @@ using System.Windows.Forms;
 using System.Text;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
+using NLipsum.Core;
 
 namespace AES_Redone
 {
     public partial class Form1 : Form
     {
+        static LipsumGenerator lipsum = new LipsumGenerator();
+        static Random random = new Random();
         static Mode CurrentMode;
         static bool pwdMatch = false;
         internal enum Mode
@@ -288,13 +290,13 @@ namespace AES_Redone
         private byte[] GenerateIVKey(string pwd, out byte[] nonce, int iters)
         {
             byte[] salt = RandomNumberGenerator.GetBytes(8);
-            nonce = RandomNumberGenerator.GetBytes(128 / 8);
+            nonce = RandomNumberGenerator.GetBytes(16);
             byte[] passwordBytes = Encoding.UTF8.GetBytes(pwd);
-            Rfc2898DeriveBytes myKeyObj = new Rfc2898DeriveBytes(passwordBytes, salt, iters);
+            Rfc2898DeriveBytes myKeyObj = new Rfc2898DeriveBytes(passwordBytes, salt, iters, HashAlgorithmName.SHA512);
             return myKeyObj.GetBytes(16);
         }
 
-        private byte[] GenerateIV() => RandomNumberGenerator.GetBytes(128 / 8);
+        private byte[] GenerateIV() => RandomNumberGenerator.GetBytes(16);
 
         void GenerateIVKey(string pwd, out byte[] iv, out byte[] k, byte[] salt)
         {
@@ -640,11 +642,7 @@ namespace AES_Redone
 
         private void loremBtn_Click(object sender, EventArgs e)
         {
-            HttpClient client = new HttpClient();
-            Random rand = new Random();
-            client.DefaultRequestHeaders.Accept.Clear();
-            client.DefaultRequestHeaders.Add("Accept", "text/plain");
-            inputTxt.Text = client.GetStringAsync($"http://settersynology:9843/plaintext?p={rand.Next(1, 10)}").Result;
+            inputTxt.Text = lipsum.GenerateLipsum(random.Next(1, 6));
         }
 
         private void browseKeyBtn_Click(object sender, EventArgs e)
