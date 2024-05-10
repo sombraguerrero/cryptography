@@ -1,16 +1,33 @@
 #pip install cryptography
 from cryptography.fernet import Fernet
-k = Fernet.generate_key()
-with open('fernet.key','wb') as fKey: fKey.write(k)
-f = Fernet(Fernet.generate_key()) # base64.urlsafe_b64encode(os.urandom(32))
-someFile = input('File to process: ')
-message = input('Text to process: ')
-with open(someFile,'rb') as img: token1 = f.encrypt(img.read())
-with open('encrypted_img.dat','wb') as cipherImg: cipherImg.write(token1)
-with open('encrypted_img.dat','rb') as readCipherImg: cipherImgBytes = readCipherImg.read()
-with open('decrypted_img.jpg','wb') as decImg: decImg.write(f.decrypt(cipherImgBytes))
-with open('fernet.key', 'r') as kfile: key2 = kfile.read()
-f2 = Fernet(key2)
-token2 = f2.encrypt(bytes(message, 'utf-8'))
-print(token2.decode())
-print(f2.decrypt(token2).decode())
+from sys import argv
+def encrypt(msg):
+    k = Fernet.generate_key()
+    with open('fernet.key','wb') as fKey: fKey.write(k)
+    f = Fernet(k)
+    x = f.encrypt(msg)
+    return x
+    
+def decrypt(msg):
+    with open('fernet.key','r') as keyfile: k = keyfile.read()
+    f = Fernet(k)
+    x = f.decrypt(msg)
+    return x
+
+if len(argv) == 2 and argv[1] == '-e':
+    message = input("Text to encrypt: ")
+    print(encrypt(bytes(message, 'utf-8')).decode())
+elif len(argv) == 2 and argv[1] == '-d':
+    message = input("Text to decrypt: ")
+    print(decrypt(bytes(message, 'utf-8')).decode())
+elif len(argv) == 2 and argv[1] == '-ef':
+    src = input("Source file path: ")
+    dest = input("Destination file path: ")
+    with open(src, 'rb') as srcFile: encFile = encrypt(srcFile.read())
+    with open(dest, 'wb') as destFile: destFile.write(encFile)
+elif len(argv) == 2 and argv[1] == '-df':
+    src = input("Source file path: ")
+    dest = input("Destination file path: ")
+    with open(src, 'rb') as srcFile: decFile = decrypt(srcFile.read())
+    with open(dest, 'wb') as destFile: destFile.write(decFile)
+    
