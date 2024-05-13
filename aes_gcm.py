@@ -3,6 +3,7 @@ from tkinter.scrolledtext import ScrolledText
 from tkinter.filedialog import askopenfilename, asksaveasfilename
 from tkinter.messagebox import showwarning
 from os import urandom
+from os.path import exists
 from base64 import urlsafe_b64encode, urlsafe_b64decode
 from uuid import uuid4
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -17,7 +18,7 @@ class AES_Util(Tk):
         self.geometry("1024x500")
         self.radioSel = StringVar(value='encrypt');
         self.keyPromptVal = IntVar()
-        self.genKeyVal = IntVar(value=1)
+        self.genKeyVal = IntVar()
         self.encryptBtn = Radiobutton(text='Encrypt', variable=self.radioSel, value='encrypt',font=('Aptos',12)).grid(row=1,column=0)
         self.decryptBtn = Radiobutton(text='Decrypt', variable=self.radioSel, value='decrypt',font=('Aptos',12)).grid(row=1,column=1)
         self.keyPrompt = Checkbutton(text='Prompt for key file',variable=self.keyPromptVal, onvalue=1, offvalue=0,font=('Aptos',12))
@@ -42,6 +43,7 @@ class AES_Util(Tk):
                 self.outputTxt.insert('1.0', self.decrypt(urlsafe_b64decode(self.inputTxt.get('1.0','end'))).decode())
         else:
             showwarning(title='Invalid input', message='No text in input field!')
+        
             
     def onSubmitFile(self):
         self.open_save_file()
@@ -73,9 +75,13 @@ class AES_Util(Tk):
             crypto2 = {'authData': uuid4().bytes, 'nonce': urandom(12), 'key': AESGCM.generate_key(bit_length=256)}
             with open(self.open_save_key(True), 'wb') as file: dump(crypto2, file)
         elif self.genKeyVal.get() == 0 and self.keyPromptVal.get() == 0:
-            with open(AES_Util.DefaultKeyPath, 'rb') as file: crypto = load(file)
-            crypto2 = {'authData': uuid4().bytes, 'nonce': urandom(12), 'key': crypto['key']}
-            with open(AES_Util.DefaultKeyPath, 'wb') as file2: dump(crypto2, file2)
+            if not exists(AES_Util.DefaultKeyPath):
+                crypto2 = {'authData': uuid4().bytes, 'nonce': urandom(12), 'key': AESGCM.generate_key(bit_length=256)}
+                with open(AES_Util.DefaultKeyPath, 'wb') as file: dump(crypto2, file)
+            else:
+                with open(AES_Util.DefaultKeyPath, 'rb') as file: crypto = load(file)
+                crypto2 = {'authData': uuid4().bytes, 'nonce': urandom(12), 'key': crypto['key']}
+                with open(AES_Util.DefaultKeyPath, 'wb') as file2: dump(crypto2, file2)
         else:
             keyLoc = self.open_save_key(False)
             with open(keyLoc, 'rb') as file: crypto = load(file)
