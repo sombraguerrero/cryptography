@@ -31,6 +31,10 @@ class AES_Util(Tk):
         self.inputLabel = Label(text="Output", font=('Aptos',12)).grid(row=5,column=0)
         self.outputTxt = ScrolledText(width=100,height=10)
         self.outputTxt.grid(row=5,column=1) # Important to do the layout calls separately when you want the widget to be referenceable because they return null
+        self.inputTxt.bind("<Control-Key-a>", self.select_all)
+        self.inputTxt.bind("<Control-Key-a>", self.select_all)
+        self.outputTxt.bind("<Control-Key-a>", self.select_all)
+        self.outputTxt.bind("<Control-Key-a>", self.select_all)
         self.submitBtn = Button(text="Process Text", font=('Aptos',12),command=self.onSubmitText).grid(row=6,column=0)
         self.fileBtn = Button(text="Process Files", font=('Aptos',12),command=self.onSubmitFile).grid(row=7,column=0)
         
@@ -43,6 +47,12 @@ class AES_Util(Tk):
                 self.outputTxt.insert('1.0', self.decrypt(urlsafe_b64decode(self.inputTxt.get('1.0','end'))).decode())
         else:
             showwarning(title='Invalid input', message='No text in input field!')
+            
+    def select_all(self, event):
+        event.widget.tag_add(SEL, "1.0", END)
+        event.widget.mark_set(INSERT, "1.0")
+        event.widget.see(INSERT)
+        return 'break'
         
             
     def onSubmitFile(self):
