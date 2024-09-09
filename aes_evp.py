@@ -55,29 +55,22 @@ class AES_Util(Tk):
         event.widget.mark_set(INSERT, "1.0")
         event.widget.see(INSERT)
         return 'break'
-     
-    def EVP_BytesToKey(self):
-        """
-        Derive the key and the IV from the given password and salt.
-        """
-        password = bytes(self.password.get(), 'utf-8')
-        if self.digestSel.get() == 'MD5':
-            dtot =  md5(password + self.salt).digest()
-            d = [ dtot ]
-            while len(dtot)<(self.ivLength + self.keyLength):
-                d.append( md5(d[-1] + password + self.salt).digest() )
-                dtot += d[-1]
-            self.key = dtot[:self.keyLength]
-            self.iv = dtot[self.keyLength:self.keyLength+self.ivLength]
-        else:
-            dtot =  sha256(password + self.salt).digest()
-            d = [ dtot ]
-            while len(dtot)<(self.ivLength + self.keyLength):
-                d.append( sha256(d[-1] + password + self.salt).digest() )
-                dtot += d[-1]
-            self.key = dtot[:self.keyLength]
-            self.iv = dtot[self.keyLength:self.keyLength+self.ivLength]
         
+    """
+    Derive the key and the IV from the given password and salt.
+    """
+    def EVP_BytesToKey(self):
+         password = bytes(self.password.get(), 'utf-8')
+         digest_func = md5 if self.digestSel.get() == 'MD5' else sha256
+         dtot = digest_func(password + self.salt).digest()
+         d = [dtot]
+         while len(dtot) < (self.ivLength + self.keyLength):
+             d.append(digest_func(d[-1] + password + self.salt).digest())
+             dtot += d[-1]
+             
+         self.key = dtot[:self.keyLength]
+         self.iv = dtot[self.keyLength:self.keyLength + self.ivLength]
+         
     def encrypt(self):
         self.EVP_BytesToKey()
         cipher = Cipher(algorithms.AES(self.key), modes.CBC(self.iv))

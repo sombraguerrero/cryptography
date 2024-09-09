@@ -300,66 +300,35 @@ namespace AES_Redone
 
         void GenerateIVKey(string pwd, out byte[] iv, out byte[] k, byte[] salt)
         {
-            if (!shaBtn.Checked)
-            {
-                // generate key and iv
-                List<byte> concatenatedHashes = new List<byte>(48);
-                byte[] password = Encoding.UTF8.GetBytes(pwd);
-                byte[] currentHash = new byte[0];
+            List<byte> concatenatedHashes = new List<byte>(48);
+            byte[] password = Encoding.UTF8.GetBytes(pwd);
+            byte[] currentHash = Array.Empty<byte>();
 
-                MD5 digest = MD5.Create();
-                bool enoughBytesForKey = false;
-                // See http://www.openssl.org/docs/crypto/EVP_BytesToKey.html#KEY_DERIVATION_ALGORITHM
-                while (!enoughBytesForKey)
-                {
-                    int preHashLength = salt != null ? currentHash.Length + password.Length + salt.Length : currentHash.Length + password.Length;
-                    byte[] preHash = new byte[preHashLength];
-                    Buffer.BlockCopy(currentHash, 0, preHash, 0, currentHash.Length);
-                    Buffer.BlockCopy(password, 0, preHash, currentHash.Length, password.Length);
-                    if (salt != null)
-                        Buffer.BlockCopy(salt, 0, preHash, currentHash.Length + password.Length, salt.Length);
-                    currentHash = digest.ComputeHash(preHash);
-                    concatenatedHashes.AddRange(currentHash);
-                    if (concatenatedHashes.Count >= 48)
-                        enoughBytesForKey = true;
-                }
-                k = new byte[32];
-                iv = new byte[16];
-                concatenatedHashes.CopyTo(0, k, 0, 32);
-                concatenatedHashes.CopyTo(32, iv, 0, 16);
-                digest.Clear();
-            }
-            else
-            {
-                // generate key and iv
-                List<byte> concatenatedHashes = new List<byte>(48);
-                byte[] password = Encoding.UTF8.GetBytes(pwd);
-                byte[] currentHash = new byte[0];
+            HashAlgorithm digest = shaBtn.Checked ? SHA256.Create() : MD5.Create();
+            bool enoughBytesForKey = false;
 
-                SHA256 digest = SHA256.Create();
-                bool enoughBytesForKey = false;
-                // See http://www.openssl.org/docs/crypto/EVP_BytesToKey.html#KEY_DERIVATION_ALGORITHM
-                while (!enoughBytesForKey)
-                {
-                    int preHashLength = salt != null ? currentHash.Length + password.Length + salt.Length : currentHash.Length + password.Length;
-                    byte[] preHash = new byte[preHashLength];
-                    Buffer.BlockCopy(currentHash, 0, preHash, 0, currentHash.Length);
-                    Buffer.BlockCopy(password, 0, preHash, currentHash.Length, password.Length);
-                    if (salt != null)
-                        Buffer.BlockCopy(salt, 0, preHash, currentHash.Length + password.Length, salt.Length);
-                    currentHash = digest.ComputeHash(preHash);
-                    concatenatedHashes.AddRange(currentHash);
-                    if (concatenatedHashes.Count >= 48)
-                        enoughBytesForKey = true;
-                }
-                k = new byte[32];
-                iv = new byte[16];
-                concatenatedHashes.CopyTo(0, k, 0, 32);
-                concatenatedHashes.CopyTo(32, iv, 0, 16);
-                digest.Clear();
+            while (!enoughBytesForKey)
+            {
+                int preHashLength = currentHash.Length + password.Length + (salt?.Length ?? 0);
+                byte[] preHash = new byte[preHashLength];
+                Buffer.BlockCopy(currentHash, 0, preHash, 0, currentHash.Length);
+                Buffer.BlockCopy(password, 0, preHash, currentHash.Length, password.Length);
+                if (salt != null)
+                    Buffer.BlockCopy(salt, 0, preHash, currentHash.Length + password.Length, salt.Length);
+
+                currentHash = digest.ComputeHash(preHash);
+                concatenatedHashes.AddRange(currentHash);
+                if (concatenatedHashes.Count >= 48)
+                    enoughBytesForKey = true;
             }
-            
+
+            k = new byte[32];
+            iv = new byte[16];
+            concatenatedHashes.CopyTo(0, k, 0, 32);
+            concatenatedHashes.CopyTo(32, iv, 0, 16);
+            digest.Clear();
         }
+
 
         static byte[] MakeOpenSSLBytes(byte[] cipherText, byte[] generatedSalt)
         {
