@@ -7,49 +7,34 @@ namespace GenericCryptoJS
     public class CryptoJS
     {
         static private ResourceManager manager = new ResourceManager("CryptoJS.Properties.Resources", System.Reflection.Assembly.GetExecutingAssembly()); 
-        static public string Encrypt(string input)
+        static public string Encrypt(string input, HashAlgorithm h)
         {
             byte[] myKey, myVector, mySalt;
             mySalt = RandomNumberGenerator.GetBytes(8);
-            GenerateIVKey(manager.GetString("genericPwd"), out myVector, out myKey, mySalt);
+            byte[] key_iv = EVP_BytesToKey(Encoding.UTF8.GetBytes(manager.GetString("genericPwd")), mySalt, 32, 16, h);
+            myKey = key_iv.Take(32).ToArray();
+            myVector = key_iv.Skip(32).Take(16).ToArray();
             return Convert.ToBase64String(MakeOpenSSLBytes(EncryptStringToBytes_Aes(input, myKey, myVector), mySalt));
         }
-
-        static public string Decrypt(string input) => DecryptFromOpenSSLString(input);
-
+        static public string Decrypt(string input, HashAlgorithm h) => DecryptFromOpenSSLString(input, h);
 
         // See http://www.openssl.org/docs/crypto/EVP_BytesToKey.html#KEY_DERIVATION_ALGORITHM
         //Credit to https://gist.github.com/caspencer/1339719 for this function
-        static void GenerateIVKey(string pwd, out byte[] iv, out byte[] k, byte[] salt)
+        public static byte[] EVP_BytesToKey(byte[] password, byte[] salt, int key_len, int iv_len, HashAlgorithm md)
         {
-            // generate key and iv
-            List<byte> concatenatedHashes = new List<byte>(48);
-            byte[] password = Encoding.UTF8.GetBytes(pwd);
-            byte[] currentHash = new byte[0];
-
-            //Might need to use SHA256 here depending on what version of OpenSSL is implemented by whatever version of cryptoJS Fremont is using.
-            MD5 md5 = MD5.Create();
-            //SHA256 sha256 = SHA256.Create();
-            bool enoughBytesForKey = false;
-            while (!enoughBytesForKey)
+            using (md)
             {
-                int preHashLength = salt != null ? currentHash.Length + password.Length + salt.Length : currentHash.Length + password.Length;
-                byte[] preHash = new byte[preHashLength];
-                Buffer.BlockCopy(currentHash, 0, preHash, 0, currentHash.Length);
-                Buffer.BlockCopy(password, 0, preHash, currentHash.Length, password.Length);
-                if (salt != null)
-                    Buffer.BlockCopy(salt, 0, preHash, currentHash.Length + password.Length, salt.Length);
-                currentHash = md5.ComputeHash(preHash);
-                concatenatedHashes.AddRange(currentHash);
-                if (concatenatedHashes.Count >= 48)
-                    enoughBytesForKey = true;
+                byte[] key_iv = new byte[key_len + iv_len];
+                int offset = 0;
+
+                while (offset < key_iv.Length)
+                {
+                    byte[] digest = md.ComputeHash(password.Concat(salt).ToArray());
+                    Array.Copy(digest, 0, key_iv, offset, Math.Min(digest.Length, key_iv.Length - offset));
+                    offset += digest.Length;
+                }
+                return key_iv;
             }
-            k = new byte[32];
-            iv = new byte[16];
-            concatenatedHashes.CopyTo(0, k, 0, 32);
-            concatenatedHashes.CopyTo(32, iv, 0, 16);
-            //sha256.Clear();
-            md5.Clear();
         }
 
         static byte[] MakeOpenSSLBytes(byte[] cipherText, byte[] generatedSalt)
@@ -58,7 +43,7 @@ namespace GenericCryptoJS
             return salted.Concat(generatedSalt).Concat(cipherText).ToArray();
         }
 
-        private static string DecryptFromOpenSSLString(string encryptedOSSLString)
+        private static string DecryptFromOpenSSLString(string encryptedOSSLString, HashAlgorithm h)
         {
             string finalText = "ERROR";
             int headerLength = 8;
@@ -78,7 +63,9 @@ namespace GenericCryptoJS
             }
             if (Encoding.UTF8.GetString(saltedLabel).Equals("Salted__"))
             {
-                GenerateIVKey(manager.GetString("genericPwd"), out myVector, out myKey, mySalt);
+                byte[] key_iv = EVP_BytesToKey(Encoding.UTF8.GetBytes(manager.GetString("genericPwd")), mySalt, 32, 16, h);
+                myKey = key_iv.Take(32).ToArray();
+                myVector = key_iv.Skip(32).Take(16).ToArray();
                 finalText = DecryptStringFromBytes_Aes(cipherText, myKey, myVector);
             }
             return finalText;
