@@ -10,7 +10,7 @@ namespace GenericCryptoJS
         static public string Encrypt(string input, HashAlgorithm h)
         {
             byte[] myKey, myVector, mySalt;
-            mySalt = RandomNumberGenerator.GetBytes(8);
+            mySalt = RandomNumberGenerator.GetBytes(96);
             byte[] key_iv = EVP_BytesToKey(Encoding.UTF8.GetBytes(manager.GetString("genericPwd")), mySalt, 32, 16, h);
             myKey = key_iv.Take(32).ToArray();
             myVector = key_iv.Skip(32).Take(16).ToArray();
@@ -26,12 +26,15 @@ namespace GenericCryptoJS
             {
                 byte[] key_iv = new byte[key_len + iv_len];
                 int offset = 0;
-
+                byte[] input = password.Concat(salt).ToArray();
                 while (offset < key_iv.Length)
                 {
-                    byte[] digest = md.ComputeHash(password.Concat(salt).ToArray());
-                    Array.Copy(digest, 0, key_iv, offset, Math.Min(digest.Length, key_iv.Length - offset));
-                    offset += digest.Length;
+                    md.Initialize(); // Reset MD state
+                    byte[] digest = md.ComputeHash(input);
+                    int bytesToCopy = Math.Min(digest.Length, key_iv.Length - offset);
+                    Array.Copy(digest, 0, key_iv, offset, bytesToCopy);
+                    offset += bytesToCopy;
+                    if (offset < key_iv.Length) { input = digest.Concat(password).ToArray(); }
                 }
                 return key_iv;
             }
@@ -46,11 +49,12 @@ namespace GenericCryptoJS
         private static string DecryptFromOpenSSLString(string encryptedOSSLString, HashAlgorithm h)
         {
             string finalText = "ERROR";
-            int headerLength = 8;
+            const int headerLength = 8;
+            const int saltLength = 96;
             byte[] objectIn = Convert.FromBase64String(encryptedOSSLString);
             byte[] saltedLabel = new byte[headerLength];
-            byte[] mySalt = new byte[headerLength];
-            int cipherTextLength = objectIn.Length - 16;
+            byte[] mySalt = new byte[saltLength];
+            int cipherTextLength = objectIn.Length - (headerLength + saltLength);
             byte[] cipherText = new byte[cipherTextLength];
             byte[] myVector;
             byte[] myKey;
@@ -58,7 +62,7 @@ namespace GenericCryptoJS
             using (MemoryStream ms = new MemoryStream(objectIn))
             {
                 ms.Read(saltedLabel, 0, headerLength);
-                ms.Read(mySalt, 0, headerLength);
+                ms.Read(mySalt, 0, saltLength);
                 ms.Read(cipherText, 0, cipherTextLength);
             }
             if (Encoding.UTF8.GetString(saltedLabel).Equals("Salted__"))
