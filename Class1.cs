@@ -6,12 +6,13 @@ namespace GenericCryptoJS
 {
     public class CryptoJS
     {
+        static private int saltLength = 16;
         static private ResourceManager manager = new ResourceManager("CryptoJS.Properties.Resources", System.Reflection.Assembly.GetExecutingAssembly()); 
         static public string Encrypt(string input, HashAlgorithm h)
         {
             byte[] myKey, myVector, mySalt;
-            mySalt = RandomNumberGenerator.GetBytes(96);
-            byte[] key_iv = EVP_BytesToKey(Encoding.UTF8.GetBytes(manager.GetString("genericPwd")), mySalt, 32, 16, h);
+            mySalt = RandomNumberGenerator.GetBytes(saltLength);
+            byte[] key_iv = EVP_BytesToKey(Encoding.UTF8.GetBytes(manager.GetString("genericPwd")), mySalt, 32, saltLength, h);
             myKey = key_iv.Take(32).ToArray();
             myVector = key_iv.Skip(32).Take(16).ToArray();
             return Convert.ToBase64String(MakeOpenSSLBytes(EncryptStringToBytes_Aes(input, myKey, myVector), mySalt));
@@ -50,7 +51,6 @@ namespace GenericCryptoJS
         {
             string finalText = "ERROR";
             const int headerLength = 8;
-            const int saltLength = 96;
             byte[] objectIn = Convert.FromBase64String(encryptedOSSLString);
             byte[] saltedLabel = new byte[headerLength];
             byte[] mySalt = new byte[saltLength];
@@ -67,7 +67,7 @@ namespace GenericCryptoJS
             }
             if (Encoding.UTF8.GetString(saltedLabel).Equals("Salted__"))
             {
-                byte[] key_iv = EVP_BytesToKey(Encoding.UTF8.GetBytes(manager.GetString("genericPwd")), mySalt, 32, 16, h);
+                byte[] key_iv = EVP_BytesToKey(Encoding.UTF8.GetBytes(manager.GetString("genericPwd")), mySalt, 32, saltLength, h);
                 myKey = key_iv.Take(32).ToArray();
                 myVector = key_iv.Skip(32).Take(16).ToArray();
                 finalText = DecryptStringFromBytes_Aes(cipherText, myKey, myVector);

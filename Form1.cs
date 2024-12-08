@@ -5,16 +5,16 @@ using System.Windows.Forms;
 using System.Text;
 using System.Collections.Generic;
 using System.Linq;
-using NLipsum.Core;
+using System.Net.Http;
 
 namespace AES_Redone
 {
     public partial class Form1 : Form
     {
-        static LipsumGenerator lipsum = new LipsumGenerator();
         static Random random = new Random();
         static Mode CurrentMode;
         static bool pwdMatch = false;
+        static private int saltLength = 16;
         internal enum Mode
         {
             EncPwdText,
@@ -289,8 +289,8 @@ namespace AES_Redone
 
         private byte[] GenerateIVKey(string pwd, out byte[] nonce, int iters)
         {
-            byte[] salt = RandomNumberGenerator.GetBytes(8);
-            nonce = RandomNumberGenerator.GetBytes(16);
+            byte[] salt = RandomNumberGenerator.GetBytes(saltLength);
+            nonce = RandomNumberGenerator.GetBytes(saltLength);
             byte[] passwordBytes = Encoding.UTF8.GetBytes(pwd);
             Rfc2898DeriveBytes myKeyObj = new Rfc2898DeriveBytes(passwordBytes, salt, iters, HashAlgorithmName.SHA512);
             return myKeyObj.GetBytes(16);
@@ -303,7 +303,7 @@ namespace AES_Redone
             const int keyLength = 32;
             const int ivLength = 16;
             byte[] password = Encoding.UTF8.GetBytes(pwd);
-            HashAlgorithm hashAlg = shaBtn.Checked ? SHA256.Create() : MD5.Create();
+            HashAlgorithm hashAlg = shaBtn.Checked ? SHA512.Create() : MD5.Create();
             using (hashAlg)
             {
                 byte[] keyAndIv = new byte[keyLength + ivLength];
@@ -344,8 +344,8 @@ namespace AES_Redone
             int headerLength = 8;
             byte[] objectIn = Convert.FromBase64String(encryptedOSSLString);
             byte[] saltedLabel = new byte[headerLength];
-            byte[] mySalt = new byte[headerLength];
-            int cipherTextLength = objectIn.Length - 16;
+            byte[] mySalt = new byte[saltLength];
+            int cipherTextLength = objectIn.Length - (headerLength + saltLength);
             byte[] cipherText = new byte[cipherTextLength];
             byte[] myVector;
             byte[] myKey;
@@ -353,7 +353,7 @@ namespace AES_Redone
             using (MemoryStream ms = new MemoryStream(objectIn))
             {
                 ms.Read(saltedLabel, 0, headerLength);
-                ms.Read(mySalt, 0, headerLength);
+                ms.Read(mySalt, 0, saltLength);
                 ms.Read(cipherText, 0, cipherTextLength);
             }
             if (Encoding.UTF8.GetString(saltedLabel).Equals("Salted__"))
@@ -368,8 +368,8 @@ namespace AES_Redone
         {
             int headerLength = 8;
             byte[] saltedLabel = new byte[headerLength];
-            byte[] mySalt = new byte[headerLength];
-            int cipherTextLength = cipherBytes.Length - 16;
+            byte[] mySalt = new byte[saltLength];
+            int cipherTextLength = cipherBytes.Length - (headerLength + saltLength);
             byte[] cipherText = new byte[cipherTextLength];
             byte[] myVector;
             byte[] myKey;
@@ -377,7 +377,7 @@ namespace AES_Redone
             using (MemoryStream ms = new MemoryStream(cipherBytes))
             {
                 ms.Read(saltedLabel, 0, headerLength);
-                ms.Read(mySalt, 0, headerLength);
+                ms.Read(mySalt, 0, saltLength);
                 ms.Read(cipherText, 0, cipherTextLength);
             }
             if (Encoding.UTF8.GetString(saltedLabel).Equals("Salted__"))
@@ -483,7 +483,7 @@ namespace AES_Redone
                         MessageBox.Show($"File created at {outputTxt.Text}", "Complete");
                         break;
                     case Mode.OSSLCompatEnc:
-                        mySalt = RandomNumberGenerator.GetBytes(8);
+                        mySalt = RandomNumberGenerator.GetBytes(saltLength);
                         GenerateIVKey(pwdTxtBox.Text, out myVector, out myKey, mySalt);
                         outputTxt.Text = Convert.ToBase64String(MakeOpenSSLBytes(EncryptStringToBytes_Aes(inputTxt.Text, myKey, myVector), mySalt));
                         ClearAllArrays(myKey, myVector, mySalt);
@@ -492,7 +492,7 @@ namespace AES_Redone
                         outputTxt.Text = DecryptFromOpenSSLString(inputTxt.Text);
                         break;
                     case Mode.OSSLCompatEncFiles:
-                        mySalt = RandomNumberGenerator.GetBytes(8);
+                        mySalt = RandomNumberGenerator.GetBytes(saltLength);
                         GenerateIVKey(pwdTxtBox.Text, out myVector, out myKey, mySalt);
                         File.WriteAllBytes(outputTxt.Text, MakeOpenSSLBytes(EncryptFileToBytes_Aes(File.ReadAllBytes(inputTxt.Text), myKey, myVector), mySalt));
                         MessageBox.Show($"File created at {outputTxt.Text}", "Complete");
@@ -613,7 +613,9 @@ namespace AES_Redone
 
         private void loremBtn_Click(object sender, EventArgs e)
         {
-            inputTxt.Text = lipsum.GenerateLipsum(random.Next(1, 6));
+            HttpClient client = new HttpClient();
+            Random rand = new Random();
+            inputTxt.Text = client.GetStringAsync($"https://loripsum.net/api/{rand.Next(3,6)}/medium/plaintext").Result;
         }
 
         private void browseKeyBtn_Click(object sender, EventArgs e)
