@@ -1,7 +1,7 @@
 from tkinter import *
 from tkinter.scrolledtext import ScrolledText
 from tkinter.messagebox import showwarning
-from hashlib import md5, sha256
+from hashlib import sha3_512
 from os import urandom
 from base64 import b64encode, b64decode
 from io import BytesIO
@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.padding import PKCS7
 class AES_Util(Tk):
     def __init__(self):
         super().__init__()
-        self.salt = urandom(8)
+        self.salt = urandom(16)
         self.keyLength = 32
         self.ivLength = 16
         self.iv = []
@@ -20,11 +20,9 @@ class AES_Util(Tk):
         self.title('AES-EVP Utility')
         self.geometry("1024x500")
         self.methodSel = StringVar(value='encrypt');
-        self.digestSel = StringVar(value='SHA256');
+        self.digestSel = StringVar(value='SHA3-512');
         self.encryptBtn = Radiobutton(text='Encrypt', variable=self.methodSel, value='encrypt',font=('Aptos',12)).grid(row=1,column=0)
         self.decryptBtn = Radiobutton(text='Decrypt', variable=self.methodSel, value='decrypt',font=('Aptos',12)).grid(row=1,column=1)
-        self.legacyBtn = Radiobutton(text='MD5', variable=self.digestSel, value='MD5',font=('Aptos',12)).grid(row=2,column=0)
-        self.finalBtn = Radiobutton(text='SHA256', variable=self.digestSel, value='SHA256',font=('Aptos',12)).grid(row=2,column=1)
         self.pwdLabel = Label(text="Enter the Password", font=('Aptos',12)).grid(row=3, column=0)
         self.password= Entry(show="*",width=60)
         self.password.grid(row=3, column=1)
@@ -61,11 +59,10 @@ class AES_Util(Tk):
     """
     def EVP_BytesToKey(self):
          password = bytes(self.password.get(), 'utf-8')
-         digest_func = md5 if self.digestSel.get() == 'MD5' else sha256
-         dtot = digest_func(password + self.salt).digest()
+         dtot = sha3_512(password + self.salt).digest()
          d = [dtot]
          while len(dtot) < (self.ivLength + self.keyLength):
-             d.append(digest_func(d[-1] + password + self.salt).digest())
+             d.append(sha3_512(d[-1] + password + self.salt).digest())
              dtot += d[-1]
              
          self.key = dtot[:self.keyLength]
@@ -84,7 +81,7 @@ class AES_Util(Tk):
         sr = BytesIO()
         sr.write(parsedData)
         sr.seek(8)
-        self.salt = sr.read(8)
+        self.salt = sr.read(16)
         self.EVP_BytesToKey()
         cipherData = sr.read()
         cipher = Cipher(algorithms.AES(self.key), modes.CBC(self.iv))
