@@ -90,8 +90,7 @@ class AES_Util(Tk):
                 with open(AES_Util.DefaultKeyPath, 'wb') as file: dump(crypto2, file)
             else:
                 with open(AES_Util.DefaultKeyPath, 'rb') as file: crypto = load(file)
-                crypto2 = {'authData': uuid4().bytes, 'nonce': urandom(12), 'key': crypto['key']}
-                with open(AES_Util.DefaultKeyPath, 'wb') as file2: dump(crypto2, file2)
+                crypto2 = {'authData': crypto['authData'], 'nonce': crypto['nonce'], 'key': crypto['key']}
         else:
             keyLoc = self.open_save_key(False)
             with open(keyLoc, 'rb') as file: crypto = load(file)
