@@ -87,7 +87,11 @@ class AES_Util(Tk):
         cipher = Cipher(algorithms.AES(self.key), modes.CBC(self.iv))
         decryptor = cipher.decryptor()
         ct = decryptor.update(cipherData) + decryptor.finalize()
-        return ct
+        unpadder = PKCS7(algorithms.AES.block_size).unpadder()
+        unpadded_data = unpadder.update(ct) + unpadder.finalize()
+        return unpadded_data
+
+
     
 if __name__ == "__main__":
     form1 = AES_Util()
