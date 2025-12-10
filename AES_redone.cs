@@ -291,9 +291,7 @@ namespace AES_Redone
         {
             byte[] salt = RandomNumberGenerator.GetBytes(salt_iv_len);
             nonce = RandomNumberGenerator.GetBytes(salt_iv_len);
-            byte[] passwordBytes = Encoding.UTF8.GetBytes(pwd);
-            Rfc2898DeriveBytes myKeyObj = new Rfc2898DeriveBytes(passwordBytes, salt, iters, HashAlgorithmName.SHA512);
-            return myKeyObj.GetBytes(keyLength);
+            return Rfc2898DeriveBytes.Pbkdf2(pwd, salt, iters, HashAlgorithmName.SHA512, keyLength);
         }
 
         private byte[] GenerateIV() => RandomNumberGenerator.GetBytes(16);
@@ -647,3 +645,4 @@ namespace AES_Redone
         }
     }
 }
+
