@@ -1,9 +1,14 @@
-const cjs = require('crypto-js');
-const http = require('http');
-const LoremIpsum = require("lorem-ipsum").LoremIpsum;
-const crypto = require('crypto');
-const fs = require('fs');
-require('dotenv').config();
+import {
+  encryptText,
+  decryptText,
+  generateLuhn19Batch
+} from "./crypto_utils.js";
+import http from "http";
+import { LoremIpsum } from "lorem-ipsum";
+import crypto from "crypto";
+import fs from "fs";
+import dotenv from "dotenv";
+dotenv.config();
 
 const lorem = new LoremIpsum({
   sentencesPerParagraph: {
@@ -16,14 +21,10 @@ const lorem = new LoremIpsum({
   }
 });
 
-http.createServer(function (req, res) {
-	let helpMsg = "Valid endpoints:\r\nPOST /legacy_encrypt\r\nPOST /legacy_decrypt\r\nPOST /pbkdf2_encrypt\r\nPOST /pbkdf2_decrypt\r\nGET /plaintext?p=<paragraphs, default is 1> - lorem ipsum text generation\r\nGET accepts plaintext. POSTS expect plaintext body.\r\n";
+http.createServer(async function (req, res) {
+	let helpMsg = "Valid endpoints:\r\nPOST /enc\r\nPOST /dec\r\nGET /lorem?p=<paragraphs, default is 1> - lorem ipsum text generation\r\n/luhn?q=<quantity, default is 1> - Luhn checksum numbers\r\nGET accepts plaintext. POSTS expect plaintext body.\r\n";
 	let textIn = '';
-	let pwdIn = ''
-	if (req.headers['x-crypto-pass'] != null)
-		pwdIn = atob(req.headers['x-crypto-pass'])
-	else
-		pwdIn = process.env.pwd;
+	let pwdIn = process.env.pwd;
 	
 	try
 	{
@@ -35,39 +36,17 @@ http.createServer(function (req, res) {
 				if (req.method == "POST" || req.method == "OPTIONS")
 				{
 					//console.log(req);
-					if (req.url == "/legacy_encrypt")
+					if (req.url == "/enc")
 					{
-						res.writeHead(200, {'Accept':'text/plain','Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'OPTIONS, POST, GET','Access-Control-Allow-Headers':'x-crypto-pass'});
-						res.write(cjs.AES.encrypt(textIn, pwdIn).toString() + "\r\n");
+						res.writeHead(200, {'Accept':'text/plain','Access-Control-Allow-Origin':'http://settersynology','Access-Control-Allow-Methods':'OPTIONS, POST, GET','Access-Control-Allow-Headers':'x-crypto-pass'});
+						res.write(encryptText(textIn));
 						res.end();
 						//console.log(res);
 					}
-					else if (req.url == "/legacy_decrypt")
+					else if (req.url == "/dec")
 					{
-						res.writeHead(200, {'Accept':'text/plain','Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'OPTIONS, POST, GET','Access-Control-Allow-Headers':'x-crypto-pass'});
-						res.write(cjs.AES.decrypt(textIn, pwdIn).toString(cjs.enc.Utf8) + "\r\n");
-						res.end();
-						//console.log(res);
-					}
-					else if (req.url.startsWith("/pbkdf2_encrypt"))
-					{
-						var salt = cjs.lib.WordArray.random(128 / 8);
-						var params = new URLSearchParams(req.url.substring(req.url.indexOf('?')));
-						var n = params.get("i") ?? '2000000';
-						var i = parseInt(n);
-						var iterKey = cjs.PBKDF2(pwdIn, salt, { keySize: 512 / 32, iterations: i });
-						var iterIV = cjs.MD5(pwdIn);
-						res.writeHead(200, {'Accept':'text/plain','Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'OPTIONS, POST, GET','Access-Control-Allow-Headers':'x-crypto-pass','Content-Type': 'application/json'});
-						var resp = {"cipherText": cjs.AES.encrypt(textIn, iterKey.toString(cjs.enc.Hex), {iv: iterIV.toString(cjs.enc.Hex)}).toString(), "key": iterKey.toString(cjs.enc.Hex), "iv" : iterIV.toString(cjs.enc.Hex)}
-						res.write(JSON.stringify(resp));
-						res.end();
-						//console.log(res);
-					}
-					else if (req.url.startsWith("/pbkdf2_decrypt"))
-					{
-						res.writeHead(200, {'Accept':'text/plain','Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'OPTIONS, POST, GET','Access-Control-Allow-Headers':'x-crypto-pass'});
-						var cipherObj = JSON.parse(textIn);
-						res.write(cjs.AES.decrypt(cipherObj.cipherText, cipherObj.key, {iv: cipherObj.iv}).toString(cjs.enc.Utf8));
+						res.writeHead(200, {'Accept':'text/plain','Access-Control-Allow-Origin':'http://settersynology','Access-Control-Allow-Methods':'OPTIONS, POST, GET','Access-Control-Allow-Headers':'x-crypto-pass'});
+						res.write(decryptText(textIn));
 						res.end();
 						//console.log(res);
 					}
@@ -81,13 +60,23 @@ http.createServer(function (req, res) {
 				}
 				else if (req.method == "GET" && req.headers['accept'] == 'text/plain')
 				{
-					if (req.url.startsWith("/plaintext"))
+					if (req.url.startsWith("/lorem"))
 					{
 						var params = new URLSearchParams(req.url.substring(req.url.indexOf('?')));
 						var n = params.get("p") ?? '1';
 						var p = parseInt(n);
 						textIn = lorem.generateParagraphs(p);
-						res.writeHead(200, {'Access-Control-Allow-Origin': '*','Access-Control-Allow-Methods': 'OPTIONS, POST, GET','Transfer-Encoding':'chunked','Accept': 'text/plain'});
+						res.writeHead(200, {'Access-Control-Allow-Origin': 'http://settersynology','Access-Control-Allow-Methods': 'OPTIONS, POST, GET','Transfer-Encoding':'chunked','Accept': 'text/plain'});
+						res.write(textIn);
+						res.end();
+					}
+					else if (req.url.startsWith("/luhn"))
+					{
+						var params = new URLSearchParams(req.url.substring(req.url.indexOf('?')));
+						var n = params.get("q") ?? '1';
+						var q = parseInt(n);
+						textIn = generateLuhn19Batch(q).toString();
+						res.writeHead(200, {'Access-Control-Allow-Origin': 'http://settersynology','Access-Control-Allow-Methods': 'OPTIONS, POST, GET','Transfer-Encoding':'chunked','Accept': 'text/plain'});
 						res.write(textIn);
 						res.end();
 					}
